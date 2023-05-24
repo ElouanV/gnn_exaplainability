@@ -1,0 +1,10 @@
+*.txt
+results/
+*.pt
+*.csv
+.idea
+.hydra
+checkpoints
+activ_ego
+.ipynb_checkpoints
+*.png
