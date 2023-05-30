@@ -101,13 +101,14 @@ def main(config):
     acc = rst.float().mean().item()
     logger.debug("Predicted prob: " + ",".join([f"{p:.4f}" for p in payoff_avg]))
         logger.debug(f"Test acc: {acc:.4f}")'''
-    rules = [23] if config.datasets.dataset_name == "mutagenicity" else [54]
+    rules = [14,28] if config.datasets.dataset_name == "mutagenicity" else [54]
     error_id = []
     for rule in rules:
-        selected_graphs = [17, 18, 45, 72, 80, 81, 85, 89, 90, 92, 99, 140, 146, 149, 150, 158, 159, 181, 185, 196, 197, 198, 288, 313, 326, 328, 345, 406, 425, 434, 438, 458, 459, 460, 461, 489, 546, 551, 561, 562, 563, 564, 569, 588, 589, 605, 619, 656, 658, 685, 702, 718, 734, 802, 805, 814, 833, 851, 862, 872, 908, 928, 968, 969, 985, 988, 1044, 1049, 1068, 1082, 1084, 1097, 1130, 1131, 1178, 1194, 1206, 1218, 1219, 1225, 1242, 1243, 1244, 1261, 1278, 1293, 1317, 1318, 1374, 1379, 1382, 1383, 1408, 1410, 1412, 1423, 1436, 1437, 1468, 1470, 1480, 1483, 1486, 1491, 1576, 1588, 1596, 1606, 1661, 1674, 1690, 1704, 1705, 1711, 1712, 1713, 1714, 1772, 1775, 1776, 1777, 1782, 1785, 1790, 1791, 1802, 1803, 1804, 1813, 1858, 1859, 1860, 1861, 1874, 1912, 1915, 1916, 1937, 2011, 2014, 2027, 2029, 2031, 2043, 2049, 2052, 2070, 2079, 2101, 2194, 2217, 2219, 2235, 2285, 2372, 2387, 2405, 2410, 2418, 2420, 2446, 2489, 2492, 2493, 2499, 2501, 2507, 2526, 2541, 2542, 2543, 2547, 2565]
+        selected_graphs = []
         ego_graph_dataset = EgoGraphDataset(
-            f"/home/elouan/epita/lre/lre/first_GNN/lrde/optimal_transport/optimal_transport_for_gnn/activ_ego/mutag_{rule}labels_egos.txt",
+            f"/home/elouan/epita/lre/gnn_explainability/src/activ_ego/mutag_{rule}labels_egos.txt",
             selected_graphs)
+        selected_graphs = ego_graph_dataset.index_list
         # Build a dataload for the ego graph dataset
         dataloader = DataLoader(ego_graph_dataset, batch_size=1, shuffle=False)
         test_indices = dataloader.dataset.indices
@@ -126,7 +127,7 @@ def main(config):
                 else:
                     dataset_name = config.datasets.dataset_name
                 targeted_rule = parse_active.get_rule_info(
-                    f"./lrde/optimal_transport/optimal_transport_for_gnn/activ_ego/{dataset_name}_{rule}labels_egos.txt")
+                    f"/home/elouan/epita/lre/gnn_explainability/src/activ_ego/{dataset_name}_{rule}labels_egos.txt")
                 targeted_class = 0
                 explainer = HNRuleExplainer(model=model,
                                             dataset=dataset,

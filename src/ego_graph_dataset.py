@@ -15,6 +15,8 @@ def select_active_graph(filepath, num_class=2, target=0, index_to_select=[]):
     graphs, _ = build_graphs_from_file(filepath, num_class)
     graphs = graphs[target]
     print(f"Number of graphs: {len(graphs)}")
+    if index_to_select == []:
+        index_to_select = list(range(len(graphs)))
     selected_graph = [graphs[i] for i in index_to_select]
     return [convert_active_graph_to_data(graph, inv_label_dict) for graph in selected_graph]
 
@@ -47,7 +49,7 @@ def convert_active_graph_to_data(graph, label_dict):
     feature_matrix = [label_dict[v] for v in feature_matrix.values()]
     feature_matrix = torch.tensor(feature_matrix).reshape(-1, 1)
     # Create a Data object from the graph
-    data = Data(x=feature_matrix, edge_index=torch.tensor(edge_index), center=center)
+    data = Data(x=feature_matrix, edge_index=torch.tensor(edge_index, dtype=torch.long), center=center)
     return data
 
 
@@ -56,6 +58,8 @@ class EgoGraphDataset(InMemoryDataset):
         self.dataset_root = path
         self.index_list = index_list
         self.data = select_active_graph(path, index_to_select=self.index_list)
+        if self.index_list == []:
+            self.index_list = list(range(len(self.data)))
         self.index_dic = {k: i for i, k in enumerate(self.index_list)}
 
     def __len__(self):
@@ -64,3 +68,6 @@ class EgoGraphDataset(InMemoryDataset):
     def __getitem__(self, index):
         target = self.index_dic[index]
         return self.data[self.index_dic[index]]
+
+    def get_index_list(self):
+        return self.index_list

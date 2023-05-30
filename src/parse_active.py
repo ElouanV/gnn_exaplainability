@@ -16,7 +16,7 @@ def add_edges(G, str):
     G.add_edge(int(tokens[1]), int(tokens[2]))
 
 
-def add_nodes(G, str, labels_list=atoms_aids):
+def add_nodes(G, str, labels_list=mutag_labels):
     tokens = str.split(" ")
     nb_nodes = int(tokens[1])
     label_int = int(tokens[2])
@@ -39,7 +39,7 @@ def find_class(tokens):
     return int(cls)
 
 
-def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=atoms_aids):
+def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=mutag_labels):
     node_count = 0
     graphs = []
     for i in range(nb_class):
