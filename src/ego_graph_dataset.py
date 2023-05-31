@@ -13,7 +13,7 @@ def select_active_graph(filepath, num_class=2, target=0, index_to_select=[]):
                   11: "K", 12: "Li", 13: "Ca"}
     inv_label_dict = {v: k for k, v in label_dict.items()}
     graphs, _ = build_graphs_from_file(filepath, num_class)
-    graphs = graphs[target]
+    graphs = graphs[0] + graphs[1]
     print(f"Number of graphs: {len(graphs)}")
     if index_to_select == []:
         index_to_select = list(range(len(graphs)))
