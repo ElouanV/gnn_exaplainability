@@ -310,10 +310,6 @@ def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='spli
     if method == 'split_top':
         top = np.array(scores)
         top = np.sort(top)[::-1]
-        # Check when the interval between one score and the next is twice bigger than the precedent
-        # If so, split the coalition
-        # If not, keep the coalition as it is
-        last_diff = top[0] - top[1]
         split_index = 1
         for i in range(1,len(top)-1):
             if top[i] < 0 :
