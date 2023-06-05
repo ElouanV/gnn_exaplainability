@@ -28,7 +28,7 @@ def build_transaction(path, metric, rule, dataset_name, graph_ids=[], fixed_size
         index=graph_ids)
     # Load graphs from file
     data = select_active_graph(
-        f"./lrde/optimal_transport/optimal_transport_for_gnn/activ_ego/mutag_{rule}labels_egos.txt",
+        f"/home/elouan/epita/lre/gnn_exaplainability/src/activ_ego/mutag_{rule}labels_egos.txt",
         index_to_select=graph_ids)
     skipped_index = []
     for graph_id in tqdm(graph_ids):
@@ -94,7 +94,7 @@ def build_counting_transaction(path, metric, rule, dataset_name, graph_ids=[], f
         index=graph_ids)
     # Load graphs from file
     data = select_active_graph(
-        f"./lrde/optimal_transport/optimal_transport_for_gnn/activ_ego/mutag_{rule}labels_egos.txt",
+        f"/home/elouan/epita/lre/gnn_exaplainability/src/activ_ego/mutag_{rule}labels_egos.txt",
         index_to_select=graph_ids)
     skipped_index = []
     for graph_id in tqdm(graph_ids):

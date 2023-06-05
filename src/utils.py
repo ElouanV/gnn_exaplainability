@@ -304,10 +304,24 @@ def superadditive_extension(n, v):
 
 
 # --------------------------------
-def scores2coalition(scores, sparsity, fixed_size=False, size=None):
+def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='split_top'):
     scores_tensor = torch.tensor(scores)
     top_idx = scores_tensor.argsort(descending=True).tolist()
-    if fixed_size:
+    if method == 'split_top':
+        top = np.array(scores)
+        top = np.sort(top)[::-1]
+        # Check when the interval between one score and the next is twice bigger than the precedent
+        # If so, split the coalition
+        # If not, keep the coalition as it is
+        last_diff = top[0] - top[1]
+        split_index = 1
+        for i in range(1,len(top)-1):
+            if top[i] < 0 :
+                split_index = i
+                break
+        cutoff = split_index
+    elif method =='fixed_size':
+
         assert size is not None
         cutoff = size
     else:
@@ -315,8 +329,6 @@ def scores2coalition(scores, sparsity, fixed_size=False, size=None):
         cutoff = min(cutoff, (scores_tensor > 0).sum().item())
     coalition = top_idx[:cutoff]
     return coalition
-
-
 
 def evaluate_coalition(explainer, data, coalition):
     device = explainer.device
