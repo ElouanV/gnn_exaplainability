@@ -16,13 +16,19 @@ from .graph import VACANT_VERTEX_LABEL
 
 import pandas as pd
 
+label_dicts = {
+    'mutagenicity': {0: "C", 1: "O", 2: "Cl", 3: "H", 4: "N", 5: "F", 6: "Br", 7: "S", 8: "P", 9: "I", 10: "Na",
+                     11: "K", 12: "Li", 13: "Ca"}}
+
 
 def record_timestamp(func):
     """Record timestamp before and after call of `func`."""
+
     def deco(self):
         self.timestamps[func.__name__ + '_in'] = time.time()
         func(self)
         self.timestamps[func.__name__ + '_out'] = time.time()
+
     return deco
 
 
@@ -77,18 +83,18 @@ class DFScode(list):
         """Represent DFScode in string way."""
         return ''.join(['[', ','.join(
             [str(dfsedge) for dfsedge in self]), ']']
-        )
+                       )
 
     def push_back(self, frm, to, vevlb):
         """Update DFScode by adding one edge."""
         self.append(DFSedge(frm, to, vevlb))
         return self
 
-    def to_graph(self, gid=VACANT_GRAPH_ID, is_undirected=True):
+    def to_graph(self, gid=VACANT_GRAPH_ID, is_undirected=True, label_dict=None):
         """Construct a graph according to the dfs code."""
         g = Graph(gid,
                   is_undirected=is_undirected,
-                  eid_auto_increment=True)
+                  eid_auto_increment=True, label_dict=label_dict)
         for dfsedge in self:
             frm, to, (vlb1, elb, vlb2) = dfsedge.frm, dfsedge.to, dfsedge.vevlb
             if vlb1 != VACANT_VERTEX_LABEL:
@@ -164,8 +170,8 @@ class History(object):
             e = pdfs.edge
             self.edges.append(e)
             (self.vertices_used[e.frm],
-                self.vertices_used[e.to],
-                self.edges_used[e.eid]) = 1, 1, 1
+             self.vertices_used[e.to],
+             self.edges_used[e.eid]) = 1, 1, 1
 
             pdfs = pdfs.prev
         self.edges = self.edges[::-1]
@@ -191,7 +197,8 @@ class gSpan(object):
                  is_undirected=True,
                  verbose=False,
                  visualize=False,
-                 where=False):
+                 where=False,
+                 dataset='mutagenicity'):
         """Initialize gSpan instance."""
         self._database_file_name = database_file_name
         self.graphs = dict()
@@ -217,6 +224,9 @@ class gSpan(object):
                   'Set max_num_vertices = min_num_vertices.')
             self._max_num_vertices = self._min_num_vertices
         self._report_df = pd.DataFrame()
+        print(f'Dataset: {dataset}')
+        self.label_dict = label_dicts[dataset]
+        print(f'Label dict: {self.label_dict}')
 
     def time_stats(self):
         """Print stats of time."""
@@ -252,7 +262,7 @@ class gSpan(object):
                         break
                     tgraph = Graph(graph_cnt,
                                    is_undirected=self._is_undirected,
-                                   eid_auto_increment=True)
+                                   eid_auto_increment=True, label_dict=self.label_dict)
                 elif cols[0] == 'v':
                     tgraph.add_vertex(cols[1], cols[2])
                 elif cols[0] == 'e':
@@ -284,7 +294,7 @@ class gSpan(object):
         for vlb, cnt in vlb_counter.items():
             if cnt >= self._min_support:
                 g = Graph(gid=next(self._counter),
-                          is_undirected=self._is_undirected)
+                          is_undirected=self._is_undirected, label_dict=self.label_dict)
                 g.add_vertex(0, vlb)
                 self._frequent_size1_subgraphs.append(g)
                 if self._min_num_vertices <= 1:
@@ -328,7 +338,7 @@ class gSpan(object):
         if self._DFScode.get_num_vertices() < self._min_num_vertices:
             return
         g = self._DFScode.to_graph(gid=next(self._counter),
-                                   is_undirected=self._is_undirected)
+                                   is_undirected=self._is_undirected, label_dict=self.label_dict)
         display_str = g.display()
         print('\nSupport: {}'.format(self._support))
 
@@ -418,6 +428,7 @@ class gSpan(object):
                     PDFS(g.gid, e, None))
         min_vevlb = min(root.keys())
         dfs_code_min.append(DFSedge(0, 1, min_vevlb))
+
         # No need to check if is min code because of pruning in get_*_edge*.
 
         def project_is_min(projected):

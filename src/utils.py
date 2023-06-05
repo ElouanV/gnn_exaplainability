@@ -24,6 +24,7 @@ from typing import Union, List
 from textwrap import wrap
 import matplotlib.pyplot as plt
 
+MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE = [3343, 2923, 2603, 5299, 22361, 13047, 2080, 21697, 3023, 5915, 7746, 6633, 1440, 833, 3724, 1263, 2494, 935, 696, 89, 14944, 2234, 6809, 4278, 2529, 4486, 3735, 5940, 2045, 2211, 3887, 3594, 1114, 88228, 231, 749, 362, 225, 1773521, 101930, 12479, 5781, 7330, 4275, 6134, 8520, 12705, 4710, 5249, 6411, 7650, 28471, 4714, 5074, 3843, 743, 756, 2252, 159, 1154]
 def characteristic_function(model, metric, targeted_rule, dataset, device, **kwargs):
     '''
     Defines the characteristic function of the associated game of game theory using similarity to a rule.
@@ -515,11 +516,12 @@ def to_networkx(
     for key, item in data(*(node_attrs + edge_attrs)):
         if torch.is_tensor(item):
             values[key] = item.squeeze().tolist()
+            if not isinstance(values[key], list):
+                values[key] = [values[key]]
         else:
             values[key] = item
         if isinstance(values[key], (list, tuple)) and len(values[key]) == 1:
             values[key] = item[0]
-
     for i, (u, v) in enumerate(data.edge_index.t().tolist()):
 
         # if to_undirected and v > u:

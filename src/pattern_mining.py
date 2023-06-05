@@ -4,7 +4,6 @@ from build_transaction import build_transaction
 import pandas as pd
 from mlxtend.frequent_patterns import apriori
 from mlxtend.frequent_patterns import association_rules
-from rich import print
 
 def pattern_frequency(path, metric, rule, dataset_name, graph_ids=[], fixed_size=False, size=None, sparsity=0.5,method='split_top'):
     print("Building transactions...")

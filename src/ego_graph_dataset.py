@@ -1,8 +1,6 @@
 import torch
 import os
 from torch_geometric.data import Data, InMemoryDataset
-from torch_geometric.data import DataLoader
-from torch_geometric.data import Dataset
 from parse_active import build_graphs_from_file
 import networkx as nx
 
@@ -19,6 +17,7 @@ def select_active_graph(filepath, num_class=2, target=0, index_to_select=[]):
         index_to_select = list(range(len(graphs)))
     selected_graph = [graphs[i] for i in index_to_select]
     return [convert_active_graph_to_data(graph, inv_label_dict) for graph in selected_graph]
+
 
 
 def convert_active_graph_to_data(graph, label_dict):

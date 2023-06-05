@@ -69,7 +69,7 @@ def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=mu
                     break
                 graph_class = find_class(tokens)
                 g.cls = graph_class
-                g.name = tokens[3][2]
+                g.name = tokens[2][:-1]
 
             elif line[0] == 'e':
                 add_edges(g, line)

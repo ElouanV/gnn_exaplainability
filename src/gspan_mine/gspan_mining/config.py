@@ -68,3 +68,11 @@ parser.add_argument(
     help='bool, output where one frequent subgraph appears in database, '
          'default off'
 )
+parser.add_argument(
+    '--dataset',
+    type=str,
+    default='mutagenicity',
+    help='dataset name to get right label dictionnary, default mtuagenicity'
+         'default off'
+)
+

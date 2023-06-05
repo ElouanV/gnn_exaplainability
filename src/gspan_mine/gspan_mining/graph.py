@@ -64,7 +64,8 @@ class Graph(object):
     def __init__(self,
                  gid=VACANT_GRAPH_ID,
                  is_undirected=True,
-                 eid_auto_increment=True):
+                 eid_auto_increment=True,
+                 label_dict=None):
         """Initialize Graph instance.
 
         Args:
@@ -79,6 +80,7 @@ class Graph(object):
         self.set_of_vlb = collections.defaultdict(set)
         self.eid_auto_increment = eid_auto_increment
         self.counter = itertools.count()
+        self.label_dict = label_dict
 
     def get_num_vertices(self):
         """Return number of vertices in the graph."""
@@ -148,7 +150,10 @@ class Graph(object):
         fsize = (min(16, 1 * len(self.vertices)),
                  min(16, 1 * len(self.vertices)))
         plt.figure(3, figsize=fsize)
-        pos = nx.spectral_layout(gnx)
-        nx.draw_networkx(gnx, pos, arrows=True, with_labels=True, labels=vlbs)
+        pos = nx.spring_layout(gnx)
+        #Plot nodes labels wxith labeldict
+        nodes_labels = {k:self.label_dict[int(v)] for k,v in vlbs.items()}
+        # Use label_dcit to plot nodes labels
+        nx.draw_networkx(gnx, pos, arrows=True, with_labels=True, labels=nodes_labels)
         nx.draw_networkx_edge_labels(gnx, pos, edge_labels=elbs)
         plt.show()
