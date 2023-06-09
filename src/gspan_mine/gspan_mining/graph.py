@@ -111,11 +111,11 @@ class Graph(object):
 
     def display(self):
         """Display the graph as text."""
-        display_str = ''
+        display_str = 't # {}'.format(self.gid) + '\n'
         print('t # {}'.format(self.gid))
         for vid in self.vertices:
             print('v {} {}'.format(vid, self.vertices[vid].vlb))
-            display_str += 'v {} {} '.format(vid, self.vertices[vid].vlb)
+            display_str += 'v {} {} '.format(vid, self.vertices[vid].vlb) + '\n'
         for frm in self.vertices:
             edges = self.vertices[frm].edges
             for to in edges:
@@ -123,10 +123,10 @@ class Graph(object):
                     if frm < to:
                         print('e {} {} {}'.format(frm, to, edges[to].elb))
                         display_str += 'e {} {} {} '.format(
-                            frm, to, edges[to].elb)
+                            frm, to, edges[to].elb) + '\n'
                 else:
                     print('e {} {} {}'.format(frm, to, edges[to].elb))
-                    display_str += 'e {} {} {}'.format(frm, to, edges[to].elb)
+                    display_str += 'e {} {} {}'.format(frm, to, edges[to].elb) + '\n'
         return display_str
 
     def plot(self):

@@ -15,7 +15,7 @@ from .graph import VACANT_GRAPH_ID
 from .graph import VACANT_VERTEX_LABEL
 
 import pandas as pd
-
+import os
 label_dicts = {
     'mutagenicity': {0: "C", 1: "O", 2: "Cl", 3: "H", 4: "N", 5: "F", 6: "Br", 7: "S", 8: "P", 9: "I", 10: "Na",
                      11: "K", 12: "Li", 13: "Ca"}}
@@ -198,7 +198,9 @@ class gSpan(object):
                  verbose=False,
                  visualize=False,
                  where=False,
-                 dataset='mutagenicity'):
+                 dataset='mutagenicity',
+                 save=True,
+                 save_path='data/'):
         """Initialize gSpan instance."""
         self._database_file_name = database_file_name
         self.graphs = dict()
@@ -224,9 +226,15 @@ class gSpan(object):
                   'Set max_num_vertices = min_num_vertices.')
             self._max_num_vertices = self._min_num_vertices
         self._report_df = pd.DataFrame()
-        print(f'Dataset: {dataset}')
         self.label_dict = label_dicts[dataset]
-        print(f'Label dict: {self.label_dict}')
+        self.save = save
+        # Extract path froom _database_file_name
+        self.save_dir = os.path.dirname(self._database_file_name)
+        self.save_path = os.path.join(self.save_dir, self._database_file_name.split('/')[-1].split('.')[0] + '.txt')
+        # Clear file
+        if self.save:
+            with open(self.save_path, 'w') as f:
+                f.write('')
 
     def time_stats(self):
         """Print stats of time."""
@@ -358,6 +366,10 @@ class gSpan(object):
         if self._where:
             print('where: {}'.format(list(set([p.gid for p in projected]))))
         print('\n-----------------\n')
+        if self.save:
+            with open(self.save_path, 'a+') as f:
+                f.write(display_str)
+
 
     def _get_forward_root_edges(self, g, frm):
         result = []
