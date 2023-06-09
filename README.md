@@ -5,6 +5,10 @@ This repository is still in development and will be updated regularly. If you ha
 ## Project Overview
 
 The GNN Rule Explanability with Cooperative Games project aims to investigate and develop novel explainability techniques for GNNs in the context of cooperative game scenarios. Cooperative games involve multiple agents working together towards a common goal, and understanding the rules and dynamics governing their interactions is crucial. By leveraging graph neural networks and cooperative game theory, we aim to provide interpretable explanations for the decision rules learned by GNN models in these settings.
+This repository contains code from [GSpan](https://github.com/betterenvi/gSpan) but we modified it to fit to our needs.
+For the implementation of Hamiache-Navarro value, we highly inspired from [GStarX](https://github.com/shichangzh/gstarx) that implement this solution for GNN explainability at instance-level.
+
+
 
 ## Repository Structure
 
