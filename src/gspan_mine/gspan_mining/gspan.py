@@ -200,7 +200,7 @@ class gSpan(object):
                  where=False,
                  dataset='mutagenicity',
                  save=True,
-                 save_path='data/'):
+                 save_path='./data'):
         """Initialize gSpan instance."""
         self._database_file_name = database_file_name
         self.graphs = dict()
@@ -228,9 +228,7 @@ class gSpan(object):
         self._report_df = pd.DataFrame()
         self.label_dict = label_dicts[dataset]
         self.save = save
-        # Extract path froom _database_file_name
-        self.save_dir = os.path.dirname(self._database_file_name)
-        self.save_path = os.path.join(self.save_dir, self._database_file_name.split('/')[-1].split('.')[0] + '.txt')
+        self.save_path = save_path
         # Clear file
         if self.save:
             with open(self.save_path, 'w') as f:
@@ -337,9 +335,10 @@ class gSpan(object):
         return len(set([pdfs.gid for pdfs in projected]))
 
     def _report_size1(self, g, support):
-        g.display()
-        print('\nSupport: {}'.format(support))
-        print('\n-----------------\n')
+        g.display(verbose=self._verbose)
+        if self._verbose:
+            print('\nSupport: {}'.format(support))
+            print('\n-----------------\n')
 
     def _report(self, projected):
         self._frequent_subgraphs.append(copy.copy(self._DFScode))
@@ -347,8 +346,9 @@ class gSpan(object):
             return
         g = self._DFScode.to_graph(gid=next(self._counter),
                                    is_undirected=self._is_undirected, label_dict=self.label_dict)
-        display_str = g.display()
-        print('\nSupport: {}'.format(self._support))
+        display_str = g.display(self._support / len(self.graphs), verbose=self._verbose)
+        if self._verbose:
+            print('\nSupport: {}'.format(self._support))
 
         # Add some report info to pandas dataframe "self._report_df".
         self._report_df = self._report_df.append(
@@ -362,10 +362,11 @@ class gSpan(object):
             )
         )
         if self._visualize:
-            g.plot()
+            g.plot(self._support, nb_graphs=len(self.graphs))
         if self._where:
             print('where: {}'.format(list(set([p.gid for p in projected]))))
-        print('\n-----------------\n')
+        if self._verbose:
+            print('\n-----------------\n')
         if self.save:
             with open(self.save_path, 'a+') as f:
                 f.write(display_str)

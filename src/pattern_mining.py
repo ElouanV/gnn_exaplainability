@@ -1,110 +1,209 @@
-from build_transaction import build_transaction
-from mlxtend.frequent_patterns import apriori
-from mlxtend.frequent_patterns import association_rules
+from build_transaction import build_counting_transaction
+import numpy as np
+from math import log
 import utils
 from ego_graph_dataset import select_active_graph
 from tqdm import tqdm
 import pandas as pd
 import os
-from utils import scores2coalition
+from utils import scores2coalition, to_networkx, get_feature_dict
 from utils import to_networkx
 
 from gspan_mine.gspan_mining.config import parser
 from gspan_mine.gspan_mining.main import main
-
-
+import networkx as nx
+from skmine.itemsets import LCM
+import matplotlib.pyplot as plt
 number_of_graph_per_rule = utils.MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE
-def pattern_frequency(path, metric, rule, dataset_name, graph_ids=[], fixed_size=False, size=None, sparsity=0.5,method='split_top'):
-    print("Building transactions...")
-    df = build_transaction(path, metric, rule, dataset_name, graph_ids, fixed_size, size, sparsity,method=method)
-    print('Transactions built.')
-    # Convert the transaction counts to binary values (0 and 1)
-    df_bin = df.applymap(lambda x: 1 if x >= 1 else 0)
-
-    # Use the Apriori algorithm to find frequent itemsets
-    frequent_itemsets = apriori(df_bin, min_support=0.2, use_colnames=True)
-
-    # Generate association rules from the frequent itemsets
-    a_rules = association_rules(frequent_itemsets, metric='confidence', min_threshold=0.5)
-
-    return frequent_itemsets, a_rules
 
 
-def build_graph_data(dataset='mutagenicity' ,rule=1, metric='entropy', node_selection='fixed_size', nb_graph=2923):
-    graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2,0,[])
+def pattern_mining(transactions, nb_graphs, supp_ratio=0.5):
+    r"""
+    Mine frequent patterns from the scores of the nodes of the graph.
+    """
+    min_supp = int(nb_graphs * supp_ratio)
+    lcm = LCM(min_supp=min_supp, n_jobs=4)
+    pattern = lcm.fit_transform(transactions)
+    return pattern
+
+
+def build_subgraph_and_transactions(dataset, rule, node_selection, nb_graph, metric, with_neighbors, data_path):
+    graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2, 0, [])
     skipped_index = []
-    with open(f'results/{dataset}_{rule}_{metric}_{node_selection}.data', 'w+') as f:
-        for i in tqdm(range(nb_graph)):
-            graph = to_networkx(graphs[i], to_undirected=True, node_attrs=['center', 'x'])
-            df_node_score = pd.read_csv(os.path.join("./results/mutagenicity/gcn/gstarx",
-                             f"rule_{rule}/result_{dataset}_{rule}_{i}.csv"))
-            if df_node_score is None or len(df_node_score) == 0:
-                skipped_index.append(i)
+    feature_dict = get_feature_dict(dataset)
+    transactions = pd.Series(dtype=object,
+                             index=np.arange(0, nb_graph))
+    with open(data_path, 'w+') as f:
+        for graph_id, graph_data in tqdm(enumerate(graphs)):
+            df_node_scores = pd.read_csv(os.path.join("./results/mutagenicity/gcn/gstarx",
+                                                      f"rule_{rule}/result_{dataset}_{rule}_{graph_id}.csv"))
+            graph = to_networkx(graph_data, to_undirected=True, node_attrs=['center', 'x'])
+            if df_node_scores is None or len(df_node_scores) == 0:
+                skipped_index.append(graph_id)
                 continue
-            node_score = df_node_score[metric].values
-            coalition = scores2coalition(node_score, sparsity=0.5, fixed_size=True, size=3)
+            node_score = df_node_scores[metric].values
+            coalition = scores2coalition(node_score, sparsity=0.5, fixed_size=True, size=3, method=node_selection)
             # If the node that has the label 'center' to True in the graph is not in the coalition, add it
             for node in graph.nodes():
                 if graph.nodes[node]['center'] and node not in coalition:
                     coalition.append(node)
-            # Select the subgraph induce by the coalition
+            # Add to the colaition the neighbors of the nodes in the coalition
+            if with_neighbors:
+                for node in coalition:
+                    for neighbor in graph.neighbors(node):
+                        if neighbor not in coalition:
+                            coalition.append(neighbor)
+            # Build _transactions
             subgraph = graph.subgraph(coalition)
-            f.write(f't # {i}\n')
+            label_count = {
+                'C': 0, 'O': 0, 'Cl': 0, 'H': 0, 'N': 0, 'F': 0, 'Br': 0, 'S': 0, 'P': 0, 'I': 0,
+                'Na': 0, 'K': 0, 'Li': 0,
+                'Ca': 0}
+            for node in subgraph.nodes():
+                label_count[feature_dict[subgraph.nodes[node]['x']]] += 1
+            dict_line = [f'{label}_{i}' for label, count in label_count.items() for i in range(1, 6) if count >= i]
+            transactions.loc[graph_id] = dict_line
+
+            # Build subgraph and write it as .data file
+            f.write(f't # {graph_id}\n')
             for node in subgraph.nodes():
                 f.write(f'v {int(node)} {graph.nodes[node]["x"]}\n')
             for edge in subgraph.edges():
                 f.write(f'e {int(edge[0])} {int(edge[1])} 0\n')
-    print(f"Skipped {len(skipped_index)} graphs")
-
-    # Build the graph.data file for a given rule
-def build_graph_data_neighbors(dataset='mutagenicity', rule=1, metric='entropy', node_selection='fixed_size',
-                                   nb_graph=2923):
-    graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2, 0, [])
-    skipped_index = []
-    with open(f'results/{dataset}_{rule}_{metric}_{node_selection}_with_neighbors.data', 'w+') as f:
-        for i in tqdm(range(nb_graph)):
-            try:
-                graph = to_networkx(graphs[i], to_undirected=True, node_attrs=['center', 'x'])
-            except Exception as e:
-                print(e)
-                skipped_index.append(i)
-                continue
-            df_node_score = pd.read_csv(os.path.join("./results/mutagenicity/gcn/gstarx",
-                                                         f"rule_{rule}/result_{dataset}_{rule}_{i}.csv"))
-            if df_node_score is None or len(df_node_score) == 0:
-                skipped_index.append(i)
-                continue
-            node_score = df_node_score[metric].values
-            coalition = scores2coalition(node_score, sparsity=0.5, fixed_size=True, size=3)
-                # If the node that has the label 'center' to True in the graph is not in the coalition, add it
-            for node in graph.nodes():
-                if graph.nodes[node]['center'] and node not in coalition:
-                    coalition.append(node)
-                # Select the subgraph induce by the coalition
-                # Add direct neighbors of the coalition to the coalition without adding nodes that are already in the coalition
-            for node in coalition:
-                for neighbor in graph.neighbors(node):
-                    if neighbor not in coalition:
-                        coalition.append(neighbor)
-            subgraph = graph.subgraph(coalition)
-            f.write(f't # {i}\n')
-            for node in subgraph.nodes():
-                f.write(f'v {int(node)} {graph.nodes[node]["x"]}\n')
-            for edge in subgraph.edges():
-                f.write(f'e {int(edge[0])} {int(edge[1])} 0\n')
-    print(f"Skipped {len(skipped_index)} graphs")
+    return transactions
 
 
-def gspan_mine_rule(rule=1, metric='entropy', node_selection='split_top', with_neighbors=False, supp_ratio=0.9,
-                            dataset='mutagenicity'):
-        if with_neighbors:
-            build_graph_data_neighbors(dataset, rule, metric, node_selection,
-                                           nb_graph=number_of_graph_per_rule[rule])
-        else:
-            build_graph_data(dataset, rule, metric, node_selection, nb_graph=number_of_graph_per_rule[rule])
-        nb_graph = number_of_graph_per_rule[rule]
-        min_support = int(nb_graph * supp_ratio)
-        args_str = f'-s {min_support} -p True -d False ./results/{dataset}_{rule}_{metric}_{node_selection}{"_with_neighbors" if with_neighbors else ""}.data'
-        FLAGS, _ = parser.parse_known_args(args=args_str.split())
-        gs = main(FLAGS)
-        return gs
+def gspan_mine_rule(nb_graph, supp_ratio=0.9, save_path='./results', data_path=''):
+    min_support = int(nb_graph * supp_ratio)
+    args_str = f'-s {min_support} -p False -d False --save-path {save_path} {data_path}'
+    FLAGS, _ = parser.parse_known_args(args=args_str.split())
+    gs = main(FLAGS)
+    return gs
+
+
+def lcm_pattern_to_count(patterns: pd.DataFrame, label_dict):
+    patterns_label_count = []
+    for index, row in patterns.iterrows():
+        label_count = {label: 0 for label in label_dict.values()}
+        items = row['itemset']
+        items = list(map(lambda x: (x.split('_')[0], int(x.split('_')[-1])), items))
+        for (label, count) in items:
+            label_count[label] = max(label_count[label], count)
+        support = row['support']
+        patterns_label_count.append((label_count, support))
+    return patterns_label_count
+
+
+def parse_gspan_result(path, label_dict):
+    r"""
+    Parse the gspan result file to a list of networkx graph
+    """
+    graphs = []
+    with open(path, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('t'):  # t # {graph_id} {support}
+                graph = nx.Graph()
+                support = float(line.split(' ')[-1])
+                graphs.append((graph, support))
+            elif line.startswith('v'):
+                tokens = line.strip().split(' ')
+                _, node_id, label = line.strip().split(' ')
+                graph.add_node(int(node_id), label=label_dict[int(label)])
+            elif line.startswith('e'):
+                _, node_id1, node_id2, label = line.strip().split(' ')
+                graph.add_edge(int(node_id1), int(node_id2))
+    return graphs
+
+
+def gspan_count(graph, label_dict):
+    r"""
+    Count the number of time each label appears in the graph
+    """
+    label_count = {label: 0 for label in label_dict.values()}
+    for node in graph.nodes():
+        label_count[graph.nodes[node]['label']] += 1
+    return label_count
+
+
+def compare_structure_and_feature(rule=1, metric='entropy', node_selection='split_top', with_neighbors=True,
+                                  min_supp_ratio=0.7, dataset='mutagenicity', verbose=False):
+    r"""
+    Compare the structure of the rule and the feature of the rule
+    """
+    nb_graph = number_of_graph_per_rule[rule]
+    gspan_path = f'./results/{dataset}_{rule}_{metric}_{node_selection}{"_with_neighbors" if with_neighbors else ""}.txt'
+    data_path = f'./results/{dataset}_{rule}_{metric}_{node_selection}{"_with_neighbors" if with_neighbors else ""}.data'
+    transactions = build_subgraph_and_transactions(dataset=dataset, rule=rule, metric=metric,
+                                                   node_selection=node_selection,
+                                                   nb_graph=nb_graph,
+                                                   with_neighbors=with_neighbors,
+                                                   data_path=data_path)
+    gs = gspan_mine_rule(nb_graph=nb_graph,
+                         supp_ratio=min_supp_ratio, save_path=gspan_path, data_path=data_path)
+    if gs is None:
+        return None
+    label_dict = gs.label_dict
+    graphs = parse_gspan_result(
+        gspan_path,
+        label_dict)
+    patterns = pattern_mining(transactions=transactions,
+                              supp_ratio=min_supp_ratio,
+                              nb_graphs=number_of_graph_per_rule[rule])
+    patterns_label_count = lcm_pattern_to_count(patterns, label_dict)
+    graphs_label_count = [(gspan_count(graph, label_dict), support) for (graph, support) in graphs]
+    ratio_supports = []
+    # Compare all combinations of patterns and graphs
+    for i in range(len(patterns_label_count)):
+        for j in range(len(graphs_label_count)):
+            pattern_label_count, pattern_support = patterns_label_count[i]
+            graph_label_count, graph_support = graphs_label_count[j]
+            if all([pattern_label_count[label] == graph_label_count[label] for label in pattern_label_count.keys()]):
+                # The pattern and the graph have the same label count
+                # Compare the support
+                support_ratio = (graph_support*2 / nb_graph)/(pattern_support/nb_graph) * (
+                    log(sum(pattern_label_count.values())))
+                if verbose:
+                    print(
+                        f"Pattern {i} and graph {j} are similar, the structure of the pattern {pattern_label_count} "
+                        f"seems to be impacted by the structure in the rule with a support ratio of {support_ratio}")
+                ratio_supports.append((i, j, support_ratio))
+            else:
+                support_score = (pattern_support / nb_graph)  * log(sum(
+                    pattern_label_count.values()))
+                if support_score > 0.9 and not ratio_supports.__contains__((i, -1, support_score)):
+                    if verbose:
+                        print(f"Pattern {i} and graph {j} are not similar, the structure of the pattern {pattern_label_count} ")
+                    ratio_supports.append((i, -1, support_score))
+    ratio_supports.sort(key=lambda x: x[2], reverse=True)
+    # Show the graph and the pattern with the highest support
+
+    best_pattern = patterns.iloc[ratio_supports[0][0]]['itemset']
+
+    print(f'Best pattern: {best_pattern}')
+    best_entity = ratio_supports[0]
+    if ratio_supports[0][1] != -1:
+        best_graph = graphs[ratio_supports[0][1]][0]
+        node_labels = {node: best_graph.nodes[node]['label'] for node in best_graph.nodes()}
+        nx.draw(best_graph, labels=node_labels, with_labels=True)
+        plt.title(f'Best graph for rule {rule}')
+        plt.show()
+        print(f'Best graph: {best_graph}')
+    return ratio_supports
+
+
+def run_on_all_rules():
+
+    for i in range(0,47):
+        try:
+            ratio_support = compare_structure_and_feature(i, 'entropy', 'split_top', True, 0.9, 'mutagenicity', verbose=False)
+            if len(ratio_support) > 0:
+                ratio_support.sort(key=lambda x: x[2], reverse=True)
+                print(ratio_support)
+            else:
+                print(f'No similar pattern found for rule {i}')
+        except Exception as e:
+            print(f'Error on rule {i}')
+
+
+run_on_all_rules()

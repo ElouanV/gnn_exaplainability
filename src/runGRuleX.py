@@ -79,7 +79,7 @@ def main(config):
 
         check_dir(explanation_saving_path)
 
-        rules = [23] if config.datasets.dataset_name == "mutagenicity" else [54]
+        rules = [1] if config.datasets.dataset_name == "mutagenicity" else [54]
         error_id = []
         for rule in rules:
             selected_graphs = []
@@ -92,6 +92,8 @@ def main(config):
             test_indices = dataloader.dataset.indices
 
             for i in tqdm(selected_graphs):
+                if i == 499:
+                    print('ok')
                 df_result = pd.DataFrame(
                     columns=["sum", "entropy", "cosine", "cheb", "likelyhood", "likelyhood_max", "hamming",
                              "focal_loss"])

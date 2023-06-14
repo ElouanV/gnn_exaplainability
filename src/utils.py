@@ -24,13 +24,20 @@ from typing import Union, List
 from textwrap import wrap
 import matplotlib.pyplot as plt
 
-MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE = [3343, 2923, 2603, 5299, 22361, 13047, 2080, 21697, 3023, 5915, 7746, 6633, 1440, 833, 3724, 1263, 2494, 935, 696, 89, 14944, 2234, 6809, 4278, 2529, 4486, 3735, 5940, 2045, 2211, 3887, 3594, 1114, 88228, 231, 749, 362, 225, 1773521, 101930, 12479, 5781, 7330, 4275, 6134, 8520, 12705, 4710, 5249, 6411, 7650, 28471, 4714, 5074, 3843, 743, 756, 2252, 159, 1154]
+MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE = [3343, 2923, 2603, 5299, 22361, 13047, 2080, 21697, 3023, 5915, 7746, 6633,
+                                         1440, 833, 3724, 1263, 2494, 935, 696, 89, 14944, 2234, 6809, 4278, 2529, 4486,
+                                         3735, 5940, 2045, 2211, 3887, 3594, 1114, 88228, 231, 749, 362, 225, 1773521,
+                                         101930, 12479, 5781, 7330, 4275, 6134, 8520, 12705, 4710, 5249, 6411, 7650,
+                                         28471, 4714, 5074, 3843, 743, 756, 2252, 159, 1154]
+
+
 def characteristic_function(model, metric, targeted_rule, dataset, device, **kwargs):
     '''
     Defines the characteristic function of the associated game of game theory using similarity to a rule.
     :return:
     '''
     # TODO
+
 
 def set_seed(seed):
     torch.manual_seed(seed)
@@ -48,7 +55,6 @@ def check_dir(save_dirs):
             pass
         else:
             os.makedirs(save_dirs)
-
 
 
 def timetz(*args):
@@ -87,6 +93,7 @@ def get_ordered_coalitions(n):
     )
     return coalitions
 
+
 def get_associated_game_matrix_M(coalitions, n, tau):
     indices = []
     values = []
@@ -103,9 +110,10 @@ def get_associated_game_matrix_M(coalitions, n, tau):
                 values += [-tau]
 
     indices = torch.Tensor(indices).t()
-    size = (2**n - 1, 2**n - 1)
+    size = (2 ** n - 1, 2 ** n - 1)
     M = torch.sparse_coo_tensor(indices, values, size)
     return M
+
 
 def get_associated_game_matrix_P(coalitions, n, adj):
     indices = []
@@ -122,10 +130,11 @@ def get_associated_game_matrix_P(coalitions, n, adj):
 
     indices = torch.Tensor(indices).t()
     values = [1.0] * indices.shape[-1]
-    size = (2**n - 1, 2**n - 1)
+    size = (2 ** n - 1, 2 ** n - 1)
 
     P = torch.sparse_coo_tensor(indices, values, size)
     return P
+
 
 def get_limit_game_matrix(H, exp_power=7, tol=1e-3, is_sparse=True):
     """
@@ -158,6 +167,7 @@ def get_graph_build_func(build_method):
     else:
         raise NotImplementedError
 
+
 """
 Graph building/Perturbation
 `graph_build_zero_filling` and `graph_build_split` are adapted from the DIG library
@@ -184,7 +194,6 @@ def graph_build_remove(X, edge_index, node_mask: torch.Tensor):
     ret_X = X[node_mask == 1]
     ret_edge_index, _ = subgraph(node_mask.bool(), edge_index, relabel_nodes=True)
     return ret_X, ret_edge_index
-
 
 
 class MaskedDataset(Dataset):
@@ -214,9 +223,6 @@ class MaskedDataset(Dataset):
         return masked_data
 
 
-
-
-
 def superadditive_extension(n, v):
     """
     n (int): number of players
@@ -236,8 +242,6 @@ def superadditive_extension(n, v):
         v_ext[i] = max(partition_payoff + [v[i]])
         coalition_trie.insert(coalition, v_ext[i])
     return v_ext
-
-
 
 
 class TrieNode:
@@ -278,7 +282,7 @@ class CoalitionTrie:
 
     def _visualize(self, node, level):
         if node:
-            print(f"{'-'*level}{node.player}:{node.payoff}")
+            print(f"{'-' * level}{node.player}:{node.payoff}")
             for child in node.children:
                 self._visualize(child, level + 1)
 
@@ -312,12 +316,12 @@ def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='spli
         top = np.array(scores)
         top = np.sort(top)[::-1]
         split_index = 1
-        for i in range(1,len(top)-1):
-            if top[i] < 0 :
+        for i in range(1, len(top) - 1):
+            if top[i] < 0:
                 split_index = i
                 break
         cutoff = split_index
-    elif method =='fixed_size':
+    elif method == 'fixed_size':
 
         assert size is not None
         cutoff = size
@@ -326,6 +330,7 @@ def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='spli
         cutoff = min(cutoff, (scores_tensor > 0).sum().item())
     coalition = top_idx[:cutoff]
     return coalition
+
 
 def evaluate_coalition(explainer, data, coalition):
     device = explainer.device
@@ -386,9 +391,9 @@ def fidelity_normalize_and_harmonic_mean(fidelity, inv_fidelity, sparsity):
     norm_fidelity = fidelity * sparsity
     norm_inv_fidelity = inv_fidelity * (1 - sparsity)
     harmonic_fidelity = (
-        (1 + norm_fidelity)
-        * (1 - norm_inv_fidelity)
-        / (2 + norm_fidelity - norm_inv_fidelity)
+            (1 + norm_fidelity)
+            * (1 - norm_inv_fidelity)
+            / (2 + norm_fidelity - norm_inv_fidelity)
     )
     return norm_fidelity, norm_inv_fidelity, harmonic_fidelity
 
@@ -463,12 +468,12 @@ def coalition2subgraph(coalition, data, relabel_nodes=True):
 
 
 def to_networkx(
-    data,
-    node_index=None,
-    node_attrs=None,
-    edge_attrs=None,
-    to_undirected=False,
-    remove_self_loops=False,
+        data,
+        node_index=None,
+        node_attrs=None,
+        edge_attrs=None,
+        to_undirected=False,
+        remove_self_loops=False,
 ):
     r"""
     Extend the PyG to_networkx with extra node_index argument, so subgraphs can be plotted with correct ids
@@ -579,18 +584,18 @@ class PlotUtils(object):
             raise NotImplementedError
 
     def plot_subgraph(
-        self,
-        graph,
-        nodelist,
-        colors: Union[None, str, List[str]] = "#FFA500",
-        labels=None,
-        edge_color="gray",
-        edgelist=None,
-        subgraph_edge_color="black",
-        title_sentence=None,
-        figname=None,
-        center_node=None,
-        center_edge_color="red",
+            self,
+            graph,
+            nodelist,
+            colors: Union[None, str, List[str]] = "#FFA500",
+            labels=None,
+            edge_color="gray",
+            edgelist=None,
+            subgraph_edge_color="black",
+            title_sentence=None,
+            figname=None,
+            center_node=None,
+            center_edge_color="red",
     ):
 
         if edgelist is None:
@@ -654,7 +659,7 @@ class PlotUtils(object):
             plt.close()
 
     def plot_sentence(
-        self, graph, nodelist, words, edgelist=None, title_sentence=None, figname=None
+            self, graph, nodelist, words, edgelist=None, title_sentence=None, figname=None
     ):
         pos = nx.kamada_kawai_layout(graph)
         words_dict = {i: words[i] for i in graph.nodes}
@@ -701,7 +706,7 @@ class PlotUtils(object):
             plt.close()
 
     def plot_ba2motifs(
-        self, graph, nodelist, edgelist=None, title_sentence=None, figname=None
+            self, graph, nodelist, edgelist=None, title_sentence=None, figname=None
     ):
         return self.plot_subgraph(
             graph,
@@ -712,7 +717,7 @@ class PlotUtils(object):
         )
 
     def plot_molecule(
-        self, graph, nodelist, x, edgelist=None, title_sentence=None, figname=None
+            self, graph, nodelist, x, edgelist=None, title_sentence=None, figname=None
     ):
         # collect the text information and node color
         if self.dataset_name == "mutag":
@@ -754,17 +759,17 @@ class PlotUtils(object):
             ]
         elif self.dataset_name == "mutagenicity":
             node_dict = {0: "C", 1: "O", 2: "Cl", 3: "H", 4: "N", 5: "F", 6: "Br", 7: "S", 8: "P", 9: "I", 10: "Na",
-                           11: "K", 12: "Li", 13: "Ca"}
+                         11: "K", 12: "Li", 13: "Ca"}
             node_idxs = {
                 k: int(v) for k, v in enumerate(x.cpu().numpy())
             }
             node_labels = {k: node_dict[v] for k, v in node_idxs.items()}
             center_node_idxs = {k: graph.nodes[k]["center"] for k in graph.nodes}
             node_color = [
-                "#E49D1C", # C
+                "#E49D1C",  # C
                 "#4970C6",
                 "#FF5357",
-                "#29A329", # H
+                "#29A329",  # H
                 "brown",
                 "darkslategray",
                 "#F0EA00",
@@ -833,8 +838,9 @@ class PlotUtils(object):
             figname=figname,
         )
 
+
 def sample_subgraph(
-    data, max_sample_size, sample_method, target_node=None, k=0, adj=None
+        data, max_sample_size, sample_method, target_node=None, k=0, adj=None
 ):
     if sample_method == "khop":
         # pick nodes within k-hops of target node. Hop by hop until reach max_sample_size
@@ -944,7 +950,7 @@ def subgraph(subset, edge_index, edge_attr=None, relabel_nodes=False,
 if __name__ == "__main__":
     # Test HN value and Shapley value via unanimity games
     def test_unanimity_game_value(
-        n, S, tau=0.05, edges=None, value_type="hn", device="cpu"
+            n, S, tau=0.05, edges=None, value_type="hn", device="cpu"
     ):
         """
         S (a set of ints in [0, n)): selected players in the unanimity_game.
@@ -971,6 +977,7 @@ if __name__ == "__main__":
         v = torch.tensor(v)
         v_tilde = torch.sparse.mm(H_tilde, v.view(-1, 1)).view(-1)
         return v_tilde[:n]
+
 
     device = "cpu"
     examples = [
@@ -1043,7 +1050,7 @@ if __name__ == "__main__":
     # Visualize CoalitionTrie
     set_seed(2)
     n = 5
-    v = torch.randperm(2 ** (n + 1))[: 2**n - 1].tolist()
+    v = torch.randperm(2 ** (n + 1))[: 2 ** n - 1].tolist()
 
     coalition_sets = get_ordered_coalitions(n)
     coalition_lists = [sorted(list(c)) for c in coalition_sets]
@@ -1053,15 +1060,17 @@ if __name__ == "__main__":
     for i, c in enumerate(coalition_lists):
         print(c, v[i])
 
+
     # Test CoalitionTrie
     def test_coalition_trie(n, seed):
         set_seed(seed)
-        v = torch.randperm(2 ** (n + 1))[: 2**n - 1].tolist()
+        v = torch.randperm(2 ** (n + 1))[: 2 ** n - 1].tolist()
         coalition_sets = get_ordered_coalitions(n)
         coalition_lists = [sorted(list(c)) for c in coalition_sets]
         coalition_trie = CoalitionTrie(coalition_lists, n, v)
         for i, c in enumerate(coalition_lists):
             assert v[i] == coalition_trie.search(c)
+
 
     for seed in range(5):
         test_coalition_trie(4, seed)
@@ -1071,7 +1080,7 @@ if __name__ == "__main__":
     # Test superadditive_extension
     set_seed(2)
     n = 5
-    v = torch.randperm(2 ** (n + 1))[: 2**n - 1].tolist()
+    v = torch.randperm(2 ** (n + 1))[: 2 ** n - 1].tolist()
 
     coalition_sets = get_ordered_coalitions(n)
     coalition_lists = [sorted(list(c)) for c in coalition_sets]
@@ -1082,5 +1091,7 @@ if __name__ == "__main__":
         print(c, v[i], v_ext[i])
 
 
-
-
+def get_feature_dict(dataset):
+    if dataset == 'mutagenicity':
+        return {0: 'C', 1: 'O', 2: 'Cl', 3: 'H', 4: 'N', 5: 'F', 6: 'Br', 7: 'S', 8: 'P', 9: 'I', 10: 'Na', 11: 'K',
+                12: 'Li', 13: 'Ca'}

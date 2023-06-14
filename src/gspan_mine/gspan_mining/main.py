@@ -32,10 +32,12 @@ def main(FLAGS=None):
         visualize=FLAGS.plot,
         where=FLAGS.where,
         dataset=FLAGS.dataset,
+        save_path=FLAGS.save_path,
     )
 
     gs.run()
-    gs.time_stats()
+    if FLAGS.verbose:
+        gs.time_stats()
     return gs
 
 

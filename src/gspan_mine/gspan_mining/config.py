@@ -76,3 +76,10 @@ parser.add_argument(
          'default off'
 )
 
+parser.add_argument(
+    '--save-path',
+    type=str,
+    default='.',
+    help='path to save the results, default current directory'
+)
+

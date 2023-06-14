@@ -109,27 +109,31 @@ class Graph(object):
             self.set_of_elb[elb].add((to, frm))
         return self
 
-    def display(self):
+    def display(self, support=0, verbose=False):
         """Display the graph as text."""
-        display_str = 't # {}'.format(self.gid) + '\n'
-        print('t # {}'.format(self.gid))
+        display_str = 't # {} {}'.format(self.gid, support) + '\n'
+        if verbose:
+            print('t # {}'.format(self.gid))
         for vid in self.vertices:
-            print('v {} {}'.format(vid, self.vertices[vid].vlb))
+            if verbose:
+                print('v {} {}'.format(vid, self.vertices[vid].vlb))
             display_str += 'v {} {} '.format(vid, self.vertices[vid].vlb) + '\n'
         for frm in self.vertices:
             edges = self.vertices[frm].edges
             for to in edges:
                 if self.is_undirected:
                     if frm < to:
-                        print('e {} {} {}'.format(frm, to, edges[to].elb))
+                        if verbose:
+                            print('e {} {} {}'.format(frm, to, edges[to].elb))
                         display_str += 'e {} {} {} '.format(
                             frm, to, edges[to].elb) + '\n'
                 else:
-                    print('e {} {} {}'.format(frm, to, edges[to].elb))
+                    if verbose:
+                        print('e {} {} {}'.format(frm, to, edges[to].elb))
                     display_str += 'e {} {} {}'.format(frm, to, edges[to].elb) + '\n'
         return display_str
 
-    def plot(self):
+    def plot(self, support=0, nb_graphs=1):
         """Visualize the graph."""
         try:
             import networkx as nx
@@ -156,4 +160,7 @@ class Graph(object):
         # Use label_dcit to plot nodes labels
         nx.draw_networkx(gnx, pos, arrows=True, with_labels=True, labels=nodes_labels)
         nx.draw_networkx_edge_labels(gnx, pos, edge_labels=elbs)
+        # Add the support / nb_graphs to the title rounded to 2 decimals
+
+        plt.title('t # {} '.format(self.gid)  + str(round(support/nb_graphs,2)))
         plt.show()
