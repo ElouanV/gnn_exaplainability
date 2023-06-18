@@ -9,8 +9,25 @@ from torch_geometric.utils.convert import to_networkx
 
 
 class HNRuleExplainer(object):
+    r"""
+    Class to extract representative features and structures captured by a rule of a model.
+    """
     def __init__(self, model, device, dataset, dataset_name, targeted_rule, targeted_class, metric='cosine',
                  max_sample_size=10, tau=0.01, subgraph_building_method="remove", edge_probs=None):
+        r"""
+        Args:
+            model (torch.nn.Module): The model to explain.
+            device (torch.device): The device on which the model is.
+            dataset (torch_geometric.data.Dataset): The dataset on which the model is trained.
+            dataset_name (str): The name of the dataset.
+            targeted_rule (int): The index of the rule to explain.
+            targeted_class (int): The index of the class to explain.
+            metric (str): The metric to use to compute the similarity between the rule and the subgraph.
+            max_sample_size (int): The maximum size of the subgraph to consider.
+            tau (float): The threshold to consider a node as part of the subgraph.
+            subgraph_building_method (str): The method to use to build the subgraph.
+            edge_probs (dict): The edge probabilities to use to build the subgraph.
+        """
         self.model = model
         self.device = device
         self.model.to(device)
@@ -37,6 +54,12 @@ class HNRuleExplainer(object):
                                             unlabeled=False, edge_probs=self.edge_probs)
 
     def compute_rule_scores(self, data, emb=None):
+        ''' UNUSED
+        Compute the score of the rule on the given graph data
+        :param data: torch_geometric.data.Data graph data to compute the score
+        :param emb: the embedding of the graph data
+        :return: the score of the rule
+        '''
         metric_value = real_value = -1
         if not self.targeted_rule:
             print("TODO")
@@ -48,6 +71,15 @@ class HNRuleExplainer(object):
         return score, (metric_value, real_value)
 
     def explain(self, data, superadditive_ext=True, sample_method='khop', num_samples=10, k=3):
+        '''
+        Compute the HN score of the given graph data
+        :param data: torch_geometric.data.Data graph data to compute the HN score
+        :param superadditive_ext: whether to use the superadditive extension
+        :param sample_method: the method to use to sample the subgraphs
+        :param num_samples: the number of samples to use to compute the HN score
+        :param k: the number of hops to use to sample the subgraphs
+        :return: the scores of the nodes
+        '''
         data = data.to(self.device)
         adj = (to_dense_adj(data.edge_index, max_num_nodes=data.num_nodes)[0].detach().cpu())
         char_function = RuleEvaluator.compute_score
@@ -77,12 +109,12 @@ class HNRuleExplainer(object):
 
     def compute_scores(self, data, adj, char_func, superadditive_ext):
         '''
-        Compute the HN score of the given graph
-        :param data:
-        :param adj:
-        :param char_func:
-        :param superadditive_ext:
-        :return:
+        Compute the HN score of the given graph to targeted rule of the objet
+        :param data: torch_geometric.data.Data graph data to compute the HN score
+        :param adj: the adjacency matrix of the graph
+        :param char_func: the characteristic function to use to compute the HN score
+        :param superadditive_ext: whether to use the superadditive extension
+        :return: the scores of the nodes
         '''
         n = data.num_nodes
         if n == self.max_sample_size:
@@ -112,6 +144,13 @@ class HNRuleExplainer(object):
         return scores
 
     def get_coalition_payoffs(self, data, coalitions, subgraph_building_func):
+        '''
+        Compute the payoffs of the coalitions
+        :param data: torch_geometric.data.Data graph data to compute the HN score
+        :param coalitions: the coalitions to compute the payoffs
+        :param subgraph_building_func: the function to use to build the subgraphs
+        :return: the payoffs of the coalitions
+        '''
         n = data.num_nodes
         masks = []
         for coalition in coalitions:
@@ -133,11 +172,16 @@ class HNRuleExplainer(object):
         return masked_payoffs
 
     def compute_score_batch(self, data_batch):
+        '''
+        Compute the score of the given batch of subgraphs
+        :param data_batch: the batch of subgraphs
+        :return: the score of the batch of subgraphs
+        '''
         scores = []
         for i in range(data_batch.num_graphs):
             subgraph = data_batch[i]
             # Convert the subgraph to a networkx graph
-            node_attrs = subgraph.x.tolist() if subgraph.num_nodes == 1 else subgraph.x
+            node_attrs = subgraph.x #.tolist() if subgraph.num_nodes == 1 else subgraph.x
             subgraph['label'] = node_attrs
             graph = to_networkx(subgraph, to_undirected=True, node_attrs=['label'])
 

@@ -10,7 +10,7 @@ import numpy as np
 
 from torch.nn.functional import cosine_similarity
 
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class RuleEvaluator:
     def __init__(self, model_to_explain, dataset_name, datas, target_rule, metric="cosine", atom_labels=True,
                  unlabeled=False, edge_probs=None):
@@ -83,6 +83,8 @@ class RuleEvaluator:
             indices = []
             labels = networkx.get_node_attributes(graph, 'label')
             for node in graph.nodes():
+                a = labels[node]
+                l = [self.atoms[k] for k in self.atoms.keys()]
                 debug = list(filter(lambda x: self.atoms[x] == labels[node], self.atoms.keys()))
                 index = next(filter(lambda x: self.atoms[x] == labels[node], self.atoms.keys()))
                 indices.append(index)
@@ -101,10 +103,9 @@ class RuleEvaluator:
             return one_hot(index_tensor, len(self.atoms.keys()))  # len(self.atoms.keys()))
 
     def get_embedding(self, graph, layer):
-
-        X = self.compute_feature_matrix(graph).type(torch.float32).to('cuda:0')
+        X = self.compute_feature_matrix(graph).type(torch.float32).to(device)
         A = torch.from_numpy(networkx.convert_matrix.to_numpy_array(graph))
-        A = dense_to_sparse(A)[0].to('cuda:0')
+        A = dense_to_sparse(A)[0].to(device)
         embeddinng = self.gnnNets.embeddings(X, A)[layer][0]
         return embeddinng
 
@@ -244,6 +245,8 @@ class RuleEvaluator:
         names = {"ba2": ("ba2"),
                  "aids": ("Aids"),
                  "BBBP": ("Bbbp"),
+                 "Mutagenicity": ("Mutag"),
+                 "mutag" : ("Mutag"),
                  "mutagenicity": ("Mutag"),
                  "DD": ("DD"),
                  "PROTEINS_full": ("Proteins")
@@ -252,7 +255,7 @@ class RuleEvaluator:
         name = names[dataset]
 
         # file = "ExplanationEvaluation/datasets/activations/" + name + "/" + name + "_activation_encode_motifs.csv"
-        file = "./lrde/optimal_transport/optimal_transport_for_gnn/src/ExplanationEvaluation/datasets/activations/" + name + "/" + name + "_activation_encode_motifs.csv"
+        file = "./datasets/activations/" + name + "/" + name + "_activation_encode_motifs.csv"
         # file = "/home/ata/ENS de Lyon/Internship/Projects/MCTS/inter-compres/INSIDE-GNN/data/Aids/Aids_activation_encode_motifs.csv"
         rules = list()
         with open(file, "r") as f:
@@ -287,7 +290,7 @@ def get_atoms(dataset,datas, unlabeled=False):
                             11: "K", 12: "Li", 13: "Ca"}
     BBBPs= ["C", "N", "O", "S", "P", "BR", "B", "F", "CL", "I", "H", "NA", "CA"]
     atoms_bbbp= {i: v  for i, v in enumerate(BBBPs) }
-    all_atoms = {"mutag": atoms_mutag, "aids": atoms_aids,"BBBP": atoms_bbbp}
+    all_atoms = {"mutag": atoms_mutag, "aids": atoms_aids,"BBBP": atoms_bbbp, 'Mutagenicity': atoms_mutag, 'mutagenicity': atoms_mutag}
 
     if unlabeled:
         return {0:0}

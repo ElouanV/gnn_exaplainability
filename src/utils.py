@@ -9,7 +9,7 @@ import copy
 from rdkit import Chem
 from datetime import datetime
 from torch_geometric.utils import to_dense_adj
-from torch_geometric.data import Data, Batch, Dataset, DataLoader
+from torch_geometric.data import Data, Batch, Dataset, DataLoader, InMemoryDataset
 from torch import Tensor
 
 # For associated game
@@ -23,20 +23,58 @@ from more_itertools import set_partitions
 from typing import Union, List
 from textwrap import wrap
 import matplotlib.pyplot as plt
-
+# Number of graphs extracted from each rule of the MUTAGENICITY dataset
 MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE = [3343, 2923, 2603, 5299, 22361, 13047, 2080, 21697, 3023, 5915, 7746, 6633,
                                          1440, 833, 3724, 1263, 2494, 935, 696, 89, 14944, 2234, 6809, 4278, 2529, 4486,
                                          3735, 5940, 2045, 2211, 3887, 3594, 1114, 88228, 231, 749, 362, 225, 1773521,
                                          101930, 12479, 5781, 7330, 4275, 6134, 8520, 12705, 4710, 5249, 6411, 7650,
                                          28471, 4714, 5074, 3843, 743, 756, 2252, 159, 1154]
 
+def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='split_top'):
+    """
+    Convert scores to coalition.
+    :param scores: the scores of the nodes
+    :param sparsity: the sparsity of the coalition
+    :param fixed_size: whether to use a fixed size or not
+    :param size: the size of the coalition
+    :param method: the method to use to convert scores to coalition, available methods are: 'split_top', 'fixed_size',
+        'sparsity'
+    :return: the coalition
+    """
+    scores_tensor = torch.tensor(scores)
+    top_idx = scores_tensor.argsort(descending=True).tolist()
+    if method == 'split_top':
+        top = np.array(scores)
+        top = np.sort(top)[::-1]
+        split_index = 1
+        for i in range(1, len(top) - 1):
+            if top[i] < 0:
+                split_index = i
+                break
+        cutoff = split_index
+    elif method == 'fixed_size':
 
-def characteristic_function(model, metric, targeted_rule, dataset, device, **kwargs):
-    '''
-    Defines the characteristic function of the associated game of game theory using similarity to a rule.
-    :return:
-    '''
-    # TODO
+        assert size is not None
+        cutoff = size
+    else:
+        cutoff = int(len(scores) * (1 - sparsity))
+        cutoff = min(cutoff, (scores_tensor > 0).sum().item())
+    coalition = top_idx[:cutoff]
+    return coalition
+
+def get_feature_dict(dataset):
+    """
+    Get the feature dictionary for a given dataset.
+    :param dataset: name of the dataset
+    :return: feature dictionary
+    """
+    if dataset == 'mutagenicity':
+        return {0: 'C', 1: 'O', 2: 'Cl', 3: 'H', 4: 'N', 5: 'F', 6: 'Br', 7: 'S', 8: 'P', 9: 'I', 10: 'Na', 11: 'K',
+                12: 'Li', 13: 'Ca'}
+
+# --------------------------------
+#The following code is copied from GStarX codebase, eventhough some lines might have been modified to fit to our needs.
+# --------------------------------
 
 
 def set_seed(seed):
@@ -196,7 +234,7 @@ def graph_build_remove(X, edge_index, node_mask: torch.Tensor):
     return ret_X, ret_edge_index
 
 
-class MaskedDataset(Dataset):
+class MaskedDataset(InMemoryDataset):
     def __init__(self, data, mask, subgraph_building_func):
         super().__init__()
 
@@ -306,30 +344,6 @@ def superadditive_extension(n, v):
         v_ext[i] = max(partition_payoff + [v[i]])
         coalition_trie.insert(coalition, v_ext[i])
     return v_ext
-
-
-# --------------------------------
-def scores2coalition(scores, sparsity, fixed_size=False, size=None, method='split_top'):
-    scores_tensor = torch.tensor(scores)
-    top_idx = scores_tensor.argsort(descending=True).tolist()
-    if method == 'split_top':
-        top = np.array(scores)
-        top = np.sort(top)[::-1]
-        split_index = 1
-        for i in range(1, len(top) - 1):
-            if top[i] < 0:
-                split_index = i
-                break
-        cutoff = split_index
-    elif method == 'fixed_size':
-
-        assert size is not None
-        cutoff = size
-    else:
-        cutoff = int(len(scores) * (1 - sparsity))
-        cutoff = min(cutoff, (scores_tensor > 0).sum().item())
-    coalition = top_idx[:cutoff]
-    return coalition
 
 
 def evaluate_coalition(explainer, data, coalition):
@@ -1089,9 +1103,3 @@ if __name__ == "__main__":
 
     for i, c in enumerate(coalition_lists):
         print(c, v[i], v_ext[i])
-
-
-def get_feature_dict(dataset):
-    if dataset == 'mutagenicity':
-        return {0: 'C', 1: 'O', 2: 'Cl', 3: 'H', 4: 'N', 5: 'F', 6: 'Br', 7: 'S', 8: 'P', 9: 'I', 10: 'Na', 11: 'K',
-                12: 'Li', 13: 'Ca'}

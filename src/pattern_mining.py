@@ -14,12 +14,17 @@ from gspan_mine.gspan_mining.main import main
 import networkx as nx
 from skmine.itemsets import LCM
 import matplotlib.pyplot as plt
+
 number_of_graph_per_rule = utils.MUTAGENICITY_NUMBER_OF_GRAPH_PER_RULE
 
 
 def pattern_mining(transactions, nb_graphs, supp_ratio=0.5):
-    r"""
-    Mine frequent patterns from the scores of the nodes of the graph.
+    """
+    Mine closed itemsets from transactions using LCM
+    :param transactions: the transactions to mine
+    :param nb_graphs: the number of graphs in the dataset
+    :param supp_ratio: the minimum support ratio
+    :return: the pattern mined
     """
     min_supp = int(nb_graphs * supp_ratio)
     lcm = LCM(min_supp=min_supp, n_jobs=4)
@@ -28,6 +33,19 @@ def pattern_mining(transactions, nb_graphs, supp_ratio=0.5):
 
 
 def build_subgraph_and_transactions(dataset, rule, node_selection, nb_graph, metric, with_neighbors, data_path):
+    """
+    Build subgraphs and transactional data from the active ego graphs to be used in gSpan and LCM. Graphs data are
+    saved in data_path with the format required by gSpan. Transactional data are return with the format
+    required by LCM. Both can be directly used by respective algorithms without any further processing.
+    :param dataset: the dataset to use
+    :param rule: the rule to use
+    :param node_selection: the node selection method to use
+    :param nb_graph: the number of graphs in the dataset
+    :param metric: the metric to use to select the nodes
+    :param with_neighbors: whether to add the neighbors of the nodes in the coalition to the coalition
+    :param data_path: the path to save the graphs data
+    :return: the transactional data
+    """
     graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2, 0, [])
     skipped_index = []
     feature_dict = get_feature_dict(dataset)
@@ -40,6 +58,7 @@ def build_subgraph_and_transactions(dataset, rule, node_selection, nb_graph, met
             graph = to_networkx(graph_data, to_undirected=True, node_attrs=['center', 'x'])
             if df_node_scores is None or len(df_node_scores) == 0:
                 skipped_index.append(graph_id)
+                transactions[graph_id] = []
                 continue
             node_score = df_node_scores[metric].values
             coalition = scores2coalition(node_score, sparsity=0.5, fixed_size=True, size=3, method=node_selection)
@@ -74,6 +93,16 @@ def build_subgraph_and_transactions(dataset, rule, node_selection, nb_graph, met
 
 
 def gspan_mine_rule(nb_graph, supp_ratio=0.9, save_path='./results', data_path=''):
+    """
+    Mine patterns from the graphs in data_path using gSpan
+    :param nb_graph: the number of graphs in the dataset
+    :param supp_ratio: the minimum support ratio
+    :param save_path: the path to save the patterns
+    :param data_path: the path to the graphs data
+    :return: the patterns mined
+    :remark: the patterns are saved in save_path, the gSpan module used here is a bit modified to save the patterns as
+    we need
+    """
     min_support = int(nb_graph * supp_ratio)
     args_str = f'-s {min_support} -p False -d False --save-path {save_path} {data_path}'
     FLAGS, _ = parser.parse_known_args(args=args_str.split())
@@ -81,7 +110,13 @@ def gspan_mine_rule(nb_graph, supp_ratio=0.9, save_path='./results', data_path='
     return gs
 
 
-def lcm_pattern_to_count(patterns: pd.DataFrame, label_dict):
+def lcm_pattern_to_count(patterns: pd.DataFrame, label_dict: dict):
+    """
+    Transform the patterns mined by LCM to a list of tuples (label, count) for each pattern
+    :param patterns: the patterns mined by LCM
+    :param label_dict: the label dictionary
+    :return: the list of tuples (label, count) for each pattern
+    """
     patterns_label_count = []
     for index, row in patterns.iterrows():
         label_count = {label: 0 for label in label_dict.values()}
@@ -95,8 +130,11 @@ def lcm_pattern_to_count(patterns: pd.DataFrame, label_dict):
 
 
 def parse_gspan_result(path, label_dict):
-    r"""
-    Parse the gspan result file to a list of networkx graph
+    """
+    Parse the result of gSpan and return the list of graphs
+    :param path: the path to the result file
+    :param label_dict: the label dictionary
+    :return: the list of graphs
     """
     graphs = []
     with open(path, 'r') as f:
@@ -117,8 +155,11 @@ def parse_gspan_result(path, label_dict):
 
 
 def gspan_count(graph, label_dict):
-    r"""
-    Count the number of time each label appears in the graph
+    """
+    Count the number of nodes for each label in the graph
+    :param graph: the graph
+    :param label_dict: the label dictionary
+    :return: the number of nodes for each label in the graph as a dictionary
     """
     label_count = {label: 0 for label in label_dict.values()}
     for node in graph.nodes():
@@ -128,9 +169,17 @@ def gspan_count(graph, label_dict):
 
 def compare_structure_and_feature(rule=1, metric='entropy', node_selection='split_top', with_neighbors=True,
                                   min_supp_ratio=0.7, dataset='mutagenicity', verbose=False):
-    r"""
-    Compare the structure of the rule and the feature of the rule
     """
+    Compare the structure and the feature of the patterns mined by gSpan and LCM as described in the paper
+    :param rule: the rule to use
+    :param metric: the metric to use
+    :param node_selection: the node selection method to use
+    :param with_neighbors: whether to use the neighbors of the selected nodes or not
+    :param min_supp_ratio: the minimum support ratio
+    :param dataset: the dataset to use
+    :param verbose: whether to print the results or not
+    :return: list of ratio of patterns that are similar in structure and feature
+    """""
     nb_graph = number_of_graph_per_rule[rule]
     gspan_path = f'./results/{dataset}_{rule}_{metric}_{node_selection}{"_with_neighbors" if with_neighbors else ""}.txt'
     data_path = f'./results/{dataset}_{rule}_{metric}_{node_selection}{"_with_neighbors" if with_neighbors else ""}.data'
@@ -161,7 +210,7 @@ def compare_structure_and_feature(rule=1, metric='entropy', node_selection='spli
             if all([pattern_label_count[label] == graph_label_count[label] for label in pattern_label_count.keys()]):
                 # The pattern and the graph have the same label count
                 # Compare the support
-                support_ratio = (graph_support*2 / nb_graph)/(pattern_support/nb_graph) * (
+                support_ratio = (graph_support / nb_graph) / (pattern_support / nb_graph) * (
                     log(sum(pattern_label_count.values())))
                 if verbose:
                     print(
@@ -169,15 +218,17 @@ def compare_structure_and_feature(rule=1, metric='entropy', node_selection='spli
                         f"seems to be impacted by the structure in the rule with a support ratio of {support_ratio}")
                 ratio_supports.append((i, j, support_ratio))
             else:
-                support_score = (pattern_support / nb_graph)  * log(sum(
+                support_score = (pattern_support / nb_graph) * log(sum(
                     pattern_label_count.values()))
                 if support_score > 0.9 and not ratio_supports.__contains__((i, -1, support_score)):
                     if verbose:
-                        print(f"Pattern {i} and graph {j} are not similar, the structure of the pattern {pattern_label_count} ")
+                        print(
+                            f"Pattern {i} and graph {j} are not similar, the structure of the pattern {pattern_label_count} ")
                     ratio_supports.append((i, -1, support_score))
     ratio_supports.sort(key=lambda x: x[2], reverse=True)
     # Show the graph and the pattern with the highest support
-
+    if len(ratio_supports) == 0:
+        return []
     best_pattern = patterns.iloc[ratio_supports[0][0]]['itemset']
 
     print(f'Best pattern: {best_pattern}')
@@ -193,10 +244,14 @@ def compare_structure_and_feature(rule=1, metric='entropy', node_selection='spli
 
 
 def run_on_all_rules():
-
-    for i in range(0,47):
+    """
+    Run the comparison on all rules, used only testing
+    :return: None
+    """
+    for i in range(0, 45):
         try:
-            ratio_support = compare_structure_and_feature(i, 'entropy', 'split_top', True, 0.9, 'mutagenicity', verbose=False)
+            ratio_support = compare_structure_and_feature(i, 'entropy', 'split_top', True, 0.9, 'mutagenicity',
+                                                          verbose=False)
             if len(ratio_support) > 0:
                 ratio_support.sort(key=lambda x: x[2], reverse=True)
                 print(ratio_support)
@@ -204,6 +259,7 @@ def run_on_all_rules():
                 print(f'No similar pattern found for rule {i}')
         except Exception as e:
             print(f'Error on rule {i}')
+            raise e
 
 
 run_on_all_rules()

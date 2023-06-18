@@ -9,15 +9,16 @@ from tqdm import tqdm
 import parse_active
 from HNruleExplainer import HNRuleExplainer
 from dataset.datasets import get_dataset, get_dataloader
-from model.gnnNets import get_gnnNets
-from utils import check_dir, get_logger, evaluate_scores_list, PlotUtils
-from torch_geometric.data import Data
+from utils import check_dir, get_logger, PlotUtils
 from model.model_selector import model_selector
 from ego_graph_dataset import EgoGraphDataset
 from torch_geometric.data import DataLoader
 import numpy as np
 
 IS_FRESH = False
+
+import warnings
+warnings.filterwarnings("ignore")
 
 
 @hydra.main(config_path="config", config_name="config")
@@ -42,7 +43,7 @@ def main(config):
 
         # Set device
         if torch.cuda.is_available():
-            device = torch.device("cuda", index=config.device_id)
+            device = torch.device("cuda:0")
         else:
             device = torch.device("cpu")
 
@@ -67,46 +68,44 @@ def main(config):
         # Load model
         model, checkpoint = model_selector("GNN", config.datasets.dataset_name, pretrained=True, return_checkpoint=True)
 
-
         model.to(device)
 
         explanation_saving_path = os.path.join(
             config.explainers.explanation_result_path,
-            config.datasets.dataset_name,
+            config.datasets.dataset_name.lower(),
             config.models.gnn_name,
             explainer_name,
         )
 
         check_dir(explanation_saving_path)
 
-        rules = [1] if config.datasets.dataset_name == "mutagenicity" else [54]
+        rules = np.arange(55,56)
         error_id = []
         for rule in rules:
+            print(f'Running rule {rule}')
             selected_graphs = []
             ego_graph_dataset = EgoGraphDataset(
-                f"/home/elouan/epita/lre/gnn_explainability/src/activ_ego/mutag_{rule}labels_egos.txt",
+                f"./activ_ego/mutag_{rule}labels_egos.txt",
                 selected_graphs)
             selected_graphs = ego_graph_dataset.index_list
             # Build a dataload for the ego graph dataset
             dataloader = DataLoader(ego_graph_dataset, batch_size=1, shuffle=False)
-            test_indices = dataloader.dataset.indices
-
+            if len(selected_graphs) > 6000:
+                print(f'Skip rule {rule}, the number of graphs ({len(selected_graphs)} exceeds the limit (8000)')
+                continue
             for i in tqdm(selected_graphs):
-                if i == 499:
-                    print('ok')
                 df_result = pd.DataFrame(
                     columns=["sum", "entropy", "cosine", "cheb", "likelyhood", "likelyhood_max", "hamming",
                              "focal_loss"])
-
                 data = ego_graph_dataset[i]
                 graph_id = i
                 for metric in ["entropy"]:
-                    if config.datasets.dataset_name == "mutagenicity":
+                    if config.datasets.dataset_name == "Mutagenicity":
                         dataset_name = 'mutag'
                     else:
                         dataset_name = config.datasets.dataset_name
                     targeted_rule = parse_active.get_rule_info(
-                        f"/home/elouan/epita/lre/gnn_explainability/src/activ_ego/{dataset_name}_{rule}labels_egos.txt")
+                        f"./activ_ego/{dataset_name}_{rule}labels_egos.txt")
                     targeted_class = 0
                     explainer = HNRuleExplainer(model=model,
                                                 dataset=dataset,
@@ -118,8 +117,6 @@ def main(config):
                                                 tau=config.explainers.param.tau,
                                                 subgraph_building_method=config.explainers.param.subgraph_building_method,
                                                 metric=metric)
-
-                    plot_utils = PlotUtils(config.datasets.dataset_name, is_show=True)
                     scores_list = []
 
                     data = data.to(device)
@@ -128,17 +125,22 @@ def main(config):
                     )
 
                     # use data.num_nodes as num_samples
-                    node_scores = explainer.explain(
-                        data,
-                        superadditive_ext=config.explainers.superadditive_ext,
-                        sample_method=config.explainers.sample_method,
-                        num_samples=config.explainers.num_samples,
-                        k=config.explainers.num_hops,
-                    )
+                    try:
+                        node_scores = explainer.explain(
+                            data,
+                            superadditive_ext=config.explainers.superadditive_ext,
+                            sample_method=config.explainers.sample_method,
+                            num_samples=config.explainers.num_samples,
+                            k=config.explainers.num_hops,
+                        )
+                    except Exception as e:
+                        node_scores = None
+                        raise e
                     if node_scores is None:
                         error_id += [(graph_id, len(data.x))]
                         continue
-
+                    # Create directory if it does not exist
+                    check_dir(os.path.join(explanation_saving_path, f"rule_{rule}"))
                     torch.save(node_scores, explained_example_path)
                     df_result[metric] = pd.Series(node_scores)
                     scores_list += [node_scores]
@@ -149,7 +151,8 @@ def main(config):
 
                     # Save the data object with the node scores
                     explained_example_path = os.path.join(
-                        explanation_saving_path, f"{config.datasets.dataset_name}_{rule}_{metric}_{graph_id}.pt"
+                        explanation_saving_path,
+                        f"rule_{rule}/{config.datasets.dataset_name.lower()}_{rule}_{metric}_{graph_id}.pt"
                     )
                     torch.save(data, explained_example_path)
                     if False:
@@ -179,20 +182,29 @@ def main(config):
                         # SAve the result dataframe as csv
 
                     data.to('cpu')
+
+
                 df_result.to_csv(
                     os.path.join(explanation_saving_path,
-                                 f"result_{config.datasets.dataset_name}_{rule}_{graph_id}.csv"),
+                                 f"rule_{rule}/result_{config.datasets.dataset_name.lower()}_{rule}_{graph_id}.csv"),
                     index=False)
         print(error_id)
     except Exception as e:
         with open('error_report.txt', 'w') as f:
             f.write(str(e))
-            f.write(str(e.stack_trace()))
+            raise e
 
         exit()
+
 
 if __name__ == "__main__":
     import sys
 
-    sys.argv.append("explainers=gstarx")
+    sys.argv.append("explainers=hnrule")
     main()
+
+
+def process_rule():
+    pass
+def process_graph():
+    pass

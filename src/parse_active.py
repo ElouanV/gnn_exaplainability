@@ -1,5 +1,4 @@
 import networkx as nx
-import os, sys
 import numpy as np
 
 mutag_labels = ["C", "O", "Cl", "H", "N", "F", "Br", "S", "P", "I", "Na", "K", "Li", "Ca"]
@@ -12,11 +11,19 @@ atoms_aids = {0: "C", 1: "O", 2: "N", 3: "Cl", 4: "F", 5: "S", 6: "Se", 7: "P", 
 
 
 def add_edges(G, str):
+    """
+    Add an edge to the graph G
+    """
     tokens = str.split(" ")
     G.add_edge(int(tokens[1]), int(tokens[2]))
 
 
-def add_nodes(G, str, labels_list=mutag_labels):
+def add_nodes(G, str, labels_list=None):
+    """
+    Add a node to the graph G
+    """
+    if labels_list is None:
+        labels_list = mutag_labels
     tokens = str.split(" ")
     nb_nodes = int(tokens[1])
     label_int = int(tokens[2])
@@ -32,14 +39,25 @@ def add_nodes(G, str, labels_list=mutag_labels):
 
 
 def find_class(tokens):
-    # print(tokens)
+    """
+    Find the class of the graph from the tokens of the line
+    """
     cls = tokens[3].replace('(', '')
     cls = cls.replace(',', '')
-    # print(cls)
     return int(cls)
 
 
-def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=mutag_labels):
+def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=None):
+    """
+    Parse a file containing graphs in the format of the used to store extracted ego graphs from activation rule
+    :param filename: the path to the file
+    :param nb_class: the number of class of graphs in the file
+    :param rule_info: if True, return the rule information (layer, target_label, rule_no)
+    :param feature_dic: the dictionnary of features
+    :return: a list of graphs, the mean number of nodes per class, and the rule information if rule_info is True
+    """
+    if feature_dic is None:
+        feature_dic = mutag_labels
     node_count = 0
     graphs = []
     for i in range(nb_class):
@@ -89,6 +107,11 @@ def build_graphs_from_file(filename, nb_class=2, rule_info=False, feature_dic=mu
 
 
 def get_rule_info(filename):
+    """
+    get additional information about the rule from the file name
+    :param filename: the path to the file
+    :return: the layer, the target label, and the rule number
+    """
     with open(filename) as f:
         title = f.readline()
         r = title.split("=")[1].split(' \n')[0]
