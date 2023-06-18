@@ -1,4 +1,4 @@
-from build_transaction import build_counting_transaction
+
 import numpy as np
 from math import log
 import utils
@@ -46,7 +46,7 @@ def build_subgraph_and_transactions(dataset, rule, node_selection, nb_graph, met
     :param data_path: the path to save the graphs data
     :return: the transactional data
     """
-    graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2, 0, [])
+    graphs = select_active_graph(f'./activ_ego/mutag_{rule}labels_egos.txt', 2, [])
     skipped_index = []
     feature_dict = get_feature_dict(dataset)
     transactions = pd.Series(dtype=object,
@@ -142,10 +142,9 @@ def parse_gspan_result(path, label_dict):
         for line in lines:
             if line.startswith('t'):  # t # {graph_id} {support}
                 graph = nx.Graph()
-                support = float(line.split(' ')[-1])
+                support = float(line.split(' ')[3])
                 graphs.append((graph, support))
             elif line.startswith('v'):
-                tokens = line.strip().split(' ')
                 _, node_id, label = line.strip().split(' ')
                 graph.add_node(int(node_id), label=label_dict[int(label)])
             elif line.startswith('e'):
@@ -169,7 +168,7 @@ def gspan_count(graph, label_dict):
 
 def compare_structure_and_feature(rule=1, metric='entropy', node_selection='split_top', with_neighbors=True,
                                   min_supp_ratio=0.7, dataset='mutagenicity', verbose=False):
-    """
+    r"""
     Compare the structure and the feature of the patterns mined by gSpan and LCM as described in the paper
     :param rule: the rule to use
     :param metric: the metric to use
@@ -216,7 +215,7 @@ def compare_structure_and_feature(rule=1, metric='entropy', node_selection='spli
                     print(
                         f"Pattern {i} and graph {j} are similar, the structure of the pattern {pattern_label_count} "
                         f"seems to be impacted by the structure in the rule with a support ratio of {support_ratio}")
-                ratio_supports.append((i, j, support_ratio))
+                ratio_supports.append((i, j, support_ratio, graphs[j][0]))
             else:
                 support_score = (pattern_support / nb_graph) * log(sum(
                     pattern_label_count.values()))
@@ -224,7 +223,7 @@ def compare_structure_and_feature(rule=1, metric='entropy', node_selection='spli
                     if verbose:
                         print(
                             f"Pattern {i} and graph {j} are not similar, the structure of the pattern {pattern_label_count} ")
-                    ratio_supports.append((i, -1, support_score))
+                    ratio_supports.append((i, -1, support_score, pattern_label_count))
     ratio_supports.sort(key=lambda x: x[2], reverse=True)
     # Show the graph and the pattern with the highest support
     if len(ratio_supports) == 0:
@@ -262,4 +261,4 @@ def run_on_all_rules():
             raise e
 
 
-run_on_all_rules()
+#run_on_all_rules()
