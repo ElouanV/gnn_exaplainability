@@ -14,13 +14,12 @@ For the implementation of Hamiache-Navarro value, we highly inspired from [GStar
 
 The repository is structured as follows: (It does not  follow this architecture yet, but it will be updated soon)
 ```angular2htmldata/ # Directory for storing datasets
-├── models/ # Directory for storing trained models
+├── checkpoints/ # Directory for storing trained models
 ├── notebooks/ # Directory for Jupyter notebooks
 ├── src/ # Directory for Python source code
-│ ├── data_preparation/ # Scripts for data preprocessing
-│ ├── models/ # Implementation of GNN models
-│ ├── explainability/ # Code for GNN explainability techniques
-│ └── utils/ # Utility functions
+│ ├── gspan_mine/ # Source code of gSpan
+│ ├── model/ # Implementation of GNN models
+│ ├── dataset/ # Code for datasets
 ├── README.md # Project overview and instructions (you are here)
 └── requirements.txt # Required Python packages 
 ```

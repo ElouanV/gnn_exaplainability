@@ -8,3 +8,4 @@ checkpoints
 activ_ego
 .ipynb_checkpoints
 *.png
+__pycache__
